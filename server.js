@@ -1,13 +1,26 @@
 const dotenv = require('dotenv');
 dotenv.config();
+
 const express = require('express');
 const app = express();
+const path = require('path');  // import path 
+
+// إعداد محرك القوالب EJS
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
 const mongoose = require('mongoose');
 const methodOverride = require('method-override');
 const morgan = require('morgan');
 const session = require('express-session');
 
 const authController = require('./controllers/auth.js');
+const recipesController = require('./controllers/recipes.js');
+const ingredientsController = require('./controllers/ingredients.js');
+
+// استدعاء الميدل وير المطلوب
+const isSignedIn = require('./middleware/is-signed-in.js');
+const passUserToView = require('./middleware/pass-user-to-view.js');
 
 const port = process.env.PORT ? process.env.PORT : '3000';
 
@@ -20,6 +33,7 @@ mongoose.connection.on('connected', () => {
 app.use(express.urlencoded({ extended: false }));
 app.use(methodOverride('_method'));
 // app.use(morgan('dev'));
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET,
@@ -27,6 +41,15 @@ app.use(
     saveUninitialized: true,
   })
 );
+
+// تمرير بيانات المستخدم للـ Views
+app.use(passUserToView);
+
+// المسارات
+app.use('/auth', authController);
+app.use(isSignedIn);
+app.use('/recipes', recipesController);
+app.use('/ingredients', ingredientsController);
 
 app.get('/', (req, res) => {
   res.render('index.ejs', {
@@ -41,8 +64,6 @@ app.get('/vip-lounge', (req, res) => {
     res.send('Sorry, no guests allowed.');
   }
 });
-
-app.use('/auth', authController);
 
 app.listen(port, () => {
   console.log(`The express app is ready on port ${port}!`);
